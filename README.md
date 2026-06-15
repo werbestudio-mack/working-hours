@@ -14,38 +14,25 @@ Webbasiertes Tool zur Erfassung von Arbeitszeiten, Urlaub und Krankheit. PHP 8.1
 
 Den gesamten Projektordner auf den Server kopieren. Den Document Root des Webservers auf `public/` zeigen lassen.
 
-### 2. Datenbank einrichten
+### 2. Leere Datenbank anlegen
+
+In MySQL / MariaDB eine leere Datenbank erstellen (z.B. über phpMyAdmin oder die Kommandozeile):
 
 ```sql
--- In MySQL / MariaDB ausführen:
-source /pfad/zur/schema.sql
+CREATE DATABASE working_hours CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
-Oder über phpMyAdmin: `schema.sql` importieren.
+### 3. Setup-Assistent aufrufen
 
-### 3. Konfiguration anpassen
+Im Browser `http://deine-domain.de/setup` aufrufen. Der Assistent führt in drei Schritten durch die Einrichtung:
 
-`src/config.php` öffnen und die Datenbankzugangsdaten anpassen:
-
-```php
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'working_hours');
-define('DB_USER', 'dein_benutzer');
-define('DB_PASS', 'dein_passwort');
-define('APP_TIMEZONE', 'Europe/Berlin');
-
-// Falls die App in einem Unterverzeichnis läuft, z.B.:
-// define('BASE_URL', '/arbeit');
-define('BASE_URL', '');
-```
-
-### 4. Administrator anlegen
-
-Im Browser `http://deine-domain.de/setup` aufrufen und den ersten Administrator-Account erstellen.
+1. **Datenbank** – Zugangsdaten eingeben; Verbindung wird getestet und alle Tabellen werden automatisch angelegt
+2. **Administrator** – Ersten Admin-Account anlegen
+3. **Fertig** – Bestätigung und Hinweis zum Löschen der Setup-Datei
 
 **Wichtig:** `public/setup.php` nach der Einrichtung löschen!
 
-### 5. Anmelden
+### 4. Anmelden
 
 `http://deine-domain.de/login` aufrufen und mit den soeben erstellten Zugangsdaten anmelden.
 
