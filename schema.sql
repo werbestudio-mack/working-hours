@@ -10,7 +10,7 @@ USE working_hours;
 -- ─────────────────────────────────────────
 -- Benutzer
 -- ─────────────────────────────────────────
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id                   INT UNSIGNED    AUTO_INCREMENT PRIMARY KEY,
     name                 VARCHAR(150)    NOT NULL,
     email                VARCHAR(255)    NOT NULL UNIQUE,
@@ -27,7 +27,7 @@ CREATE TABLE users (
 -- ─────────────────────────────────────────
 -- Feiertage
 -- ─────────────────────────────────────────
-CREATE TABLE public_holidays (
+CREATE TABLE IF NOT EXISTS public_holidays (
     id          INT UNSIGNED    AUTO_INCREMENT PRIMARY KEY,
     name        VARCHAR(150)    NOT NULL,
     date        DATE            NOT NULL,
@@ -43,7 +43,7 @@ CREATE TABLE public_holidays (
 -- vacation + sick:     date_start / date_end (nur Datum)
 -- half_day: 0=kein, 1=Vormittag, 2=Nachmittag (nur vacation)
 -- ─────────────────────────────────────────
-CREATE TABLE time_entries (
+CREATE TABLE IF NOT EXISTS time_entries (
     id          INT UNSIGNED    AUTO_INCREMENT PRIMARY KEY,
     user_id     INT UNSIGNED    NOT NULL,
     type        ENUM('work','vacation','sick','compensatory') NOT NULL,
@@ -64,7 +64,7 @@ CREATE TABLE time_entries (
 -- ─────────────────────────────────────────
 -- Urlaubsanpassungen (Resturlaub, Sondertage)
 -- ─────────────────────────────────────────
-CREATE TABLE vacation_adjustments (
+CREATE TABLE IF NOT EXISTS vacation_adjustments (
     id          INT UNSIGNED        AUTO_INCREMENT PRIMARY KEY,
     user_id     INT UNSIGNED        NOT NULL,
     year        SMALLINT UNSIGNED   NOT NULL,
