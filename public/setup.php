@@ -269,15 +269,13 @@ function runSchema(PDO $pdo): void
         throw new RuntimeException('schema.sql konnte nicht gelesen werden.');
     }
 
-    // CREATE DATABASE und USE-Anweisungen entfernen (DB wird via PDO-DSN gesetzt)
-    $lines    = explode("\n", $sql);
-    $filtered = array_filter($lines, static function (string $line): bool {
-        return !preg_match('/^\s*(CREATE\s+DATABASE|USE\s)/i', $line);
-    });
-
+    // Nach Semikolons aufteilen, dann Statement-weise filtern.
+    // CREATE DATABASE und USE werden als ganzes Statement herausgefiltert,
+    // da CREATE DATABASE mehrzeilig ist und zeilenweises Filtern Reste hinterlässt.
     $statements = array_filter(
-        array_map('trim', explode(';', implode("\n", $filtered))),
-        static fn(string $s): bool => $s !== ''
+        array_map('trim', explode(';', $sql)),
+        static fn(string $s): bool =>
+            $s !== '' && !preg_match('/^\s*(CREATE\s+DATABASE|USE\s+\w+)/i', $s)
     );
 
     foreach ($statements as $stmt) {
