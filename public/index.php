@@ -31,6 +31,8 @@ $routes = [
 
     ['GET',  '#^/vacation/detail$#',                                    'VacationController',     'detail'],
 
+    ['GET',  '#^/admin/dump$#',                                         'AdminUserController',    'dump'],
+
     ['GET',  '#^/admin/users$#',                                        'AdminUserController',    'index'],
     ['GET',  '#^/admin/users/create$#',                                 'AdminUserController',    'create'],
     ['POST', '#^/admin/users/create$#',                                 'AdminUserController',    'store'],

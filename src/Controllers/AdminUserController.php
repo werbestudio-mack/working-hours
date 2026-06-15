@@ -178,6 +178,46 @@ class AdminUserController
         redirect('/admin/users/' . $userId . '/edit');
     }
 
+    public function dump(array $p = []): void
+    {
+        Auth::requireAdmin();
+
+        $filename = 'backup_' . date('Y-m-d_His') . '.sql';
+        header('Content-Type: application/octet-stream');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Pragma: no-cache');
+
+        $pdo    = Database::get();
+        $tables = ['users', 'public_holidays', 'time_entries', 'vacation_adjustments'];
+
+        echo "-- Arbeitszeiterfassung Datenbankdump\n";
+        echo "-- Erstellt: " . date('Y-m-d H:i:s') . "\n\n";
+        echo "SET FOREIGN_KEY_CHECKS=0;\n\n";
+
+        foreach ($tables as $table) {
+            $create = $pdo->query("SHOW CREATE TABLE `$table`")->fetch(PDO::FETCH_NUM);
+            echo "DROP TABLE IF EXISTS `$table`;\n";
+            echo $create[1] . ";\n\n";
+
+            $rows = Database::fetchAll("SELECT * FROM `$table`");
+            if ($rows) {
+                $cols = '`' . implode('`, `', array_keys($rows[0])) . '`';
+                $valueRows = [];
+                foreach ($rows as $row) {
+                    $vals = array_map(static function ($v) use ($pdo) {
+                        return $v === null ? 'NULL' : $pdo->quote((string) $v);
+                    }, array_values($row));
+                    $valueRows[] = '(' . implode(', ', $vals) . ')';
+                }
+                echo "INSERT INTO `$table` ($cols) VALUES\n";
+                echo implode(",\n", $valueRows) . ";\n\n";
+            }
+        }
+
+        echo "SET FOREIGN_KEY_CHECKS=1;\n";
+        exit;
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────
 
     private function findUser(int $id): array
