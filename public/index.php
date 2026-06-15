@@ -21,6 +21,10 @@ $routes = [
     ['POST', '#^/logout$#',                                             'AuthController',         'logout'],
     ['GET',  '#^/password/change$#',                                    'AuthController',         'showChangePassword'],
     ['POST', '#^/password/change$#',                                    'AuthController',         'changePassword'],
+    ['GET',  '#^/password/forgot$#',                                    'AuthController',         'showForgot'],
+    ['POST', '#^/password/forgot$#',                                    'AuthController',         'forgot'],
+    ['GET',  '#^/password/reset$#',                                     'AuthController',         'showReset'],
+    ['POST', '#^/password/reset$#',                                     'AuthController',         'resetPassword'],
 
     ['GET',  '#^/entries$#',                                            'TimeEntryController',    'index'],
     ['GET',  '#^/entries/create$#',                                     'TimeEntryController',    'create'],

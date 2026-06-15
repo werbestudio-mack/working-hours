@@ -47,6 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $dbPass     = $_POST['db_pass']        ?? '';
         $timezone   = $_POST['timezone']       ?? 'Europe/Berlin';
         $baseUrl    = rtrim(trim($_POST['base_url'] ?? ''), '/');
+        $mailFrom   = trim($_POST['mail_from'] ?? '');
 
         if (!$dbName || !$dbUser) {
             $error = 'Datenbankname und Benutzername sind Pflichtfelder.';
@@ -61,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 runSchema($pdo);
 
                 // config.php schreiben
-                writeConfig($dbHost, $dbName, $dbUser, $dbPass, $timezone, $baseUrl);
+                writeConfig($dbHost, $dbName, $dbUser, $dbPass, $timezone, $baseUrl, $mailFrom);
 
                 $_SESSION['setup_db']   = compact('dbHost', 'dbName', 'dbUser', 'dbPass');
                 $_SESSION['setup_step'] = 2;
@@ -134,24 +135,27 @@ if ($step === 3) {
 if ($step === 1) {
     // Werte aus bestehender config.php vorbelegen (falls vorhanden)
     $pre = ['db_host' => 'localhost', 'db_name' => 'working_hours',
-            'db_user' => '', 'db_pass' => '', 'timezone' => 'Europe/Berlin', 'base_url' => ''];
+            'db_user' => '', 'db_pass' => '', 'timezone' => 'Europe/Berlin',
+            'base_url' => '', 'mail_from' => ''];
     if (file_exists(CONFIG_PATH)) {
         @include CONFIG_PATH;
         if (defined('DB_HOST')) {
             $pre = ['db_host' => DB_HOST, 'db_name' => DB_NAME, 'db_user' => DB_USER,
                     'db_pass' => DB_PASS, 'timezone' => defined('APP_TIMEZONE') ? APP_TIMEZONE : 'Europe/Berlin',
-                    'base_url' => defined('BASE_URL') ? BASE_URL : ''];
+                    'base_url' => defined('BASE_URL') ? BASE_URL : '',
+                    'mail_from' => defined('MAIL_FROM') ? MAIL_FROM : ''];
         }
     }
     // Bei Fehler nach POST: eingegebene Werte behalten
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pre = [
-            'db_host'  => $_POST['db_host']  ?? $pre['db_host'],
-            'db_name'  => $_POST['db_name']  ?? $pre['db_name'],
-            'db_user'  => $_POST['db_user']  ?? $pre['db_user'],
-            'db_pass'  => $_POST['db_pass']  ?? $pre['db_pass'],
-            'timezone' => $_POST['timezone'] ?? $pre['timezone'],
-            'base_url' => $_POST['base_url'] ?? $pre['base_url'],
+            'db_host'   => $_POST['db_host']   ?? $pre['db_host'],
+            'db_name'   => $_POST['db_name']   ?? $pre['db_name'],
+            'db_user'   => $_POST['db_user']   ?? $pre['db_user'],
+            'db_pass'   => $_POST['db_pass']   ?? $pre['db_pass'],
+            'timezone'  => $_POST['timezone']  ?? $pre['timezone'],
+            'base_url'  => $_POST['base_url']  ?? $pre['base_url'],
+            'mail_from' => $_POST['mail_from'] ?? $pre['mail_from'],
         ];
     }
 
@@ -200,13 +204,22 @@ if ($step === 1) {
     $body .= '
             </select>
         </div>
-        <div class="mb-4">
+        <div class="mb-3">
             <label class="form-label">Basis-URL</label>
             <input type="text" name="base_url" class="form-control"
                    value="' . hv($pre['base_url']) . '" placeholder="Leer = Web-Root">
             <div class="form-text">
                 Nur ausfüllen, wenn die App in einem Unterverzeichnis läuft,
                 z.B. <code>/arbeit</code>. Sonst leer lassen.
+            </div>
+        </div>
+        <div class="mb-4">
+            <label class="form-label">Absender-E-Mail (für Passwort-Reset)</label>
+            <input type="email" name="mail_from" class="form-control"
+                   value="' . hv($pre['mail_from']) . '" placeholder="noreply@ihre-domain.de">
+            <div class="form-text">
+                Von dieser Adresse werden Reset-E-Mails versendet. Kann leer gelassen und später
+                in <code>src/config.php</code> als <code>MAIL_FROM</code> eingetragen werden.
             </div>
         </div>
         <button type="submit" class="btn btn-primary">
@@ -300,7 +313,7 @@ function runSchema(PDO $pdo): void
 
 function writeConfig(
     string $host, string $name, string $user, string $pass,
-    string $timezone, string $baseUrl
+    string $timezone, string $baseUrl, string $mailFrom = ''
 ): void {
     $e = static fn(string $s): string => str_replace(["\\", "'"], ["\\\\", "\\'"], $s);
 
@@ -312,7 +325,8 @@ function writeConfig(
         . "define('APP_NAME',    'Arbeitszeiterfassung');\n"
         . "define('APP_TIMEZONE','" . $e($timezone) . "');\n"
         . "define('BASE_PATH',   dirname(__DIR__));\n"
-        . "define('BASE_URL',    '" . $e($baseUrl)  . "');\n";
+        . "define('BASE_URL',    '" . $e($baseUrl)  . "');\n"
+        . ($mailFrom !== '' ? "define('MAIL_FROM',   '" . $e($mailFrom) . "');\n" : '');
 
     if (file_put_contents(CONFIG_PATH, $content) === false) {
         throw new RuntimeException(
