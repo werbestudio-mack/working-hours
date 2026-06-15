@@ -28,7 +28,7 @@ if ($isEdit && $isTimeBased) {
     <div class="col-lg-7">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h2 class="mb-0"><?= $isEdit ? 'Eintrag bearbeiten' : 'Neuer Eintrag' ?></h2>
-            <a href="<?= BASE_URL ?>/entries" class="btn btn-sm btn-outline-secondary">Zurück</a>
+            <a href="<?= h($backUrl) ?>" class="btn btn-sm btn-outline-secondary">Zurück</a>
         </div>
 
         <?php if ($error): ?>
@@ -144,7 +144,7 @@ if ($isEdit && $isTimeBased) {
                         <button type="submit" class="btn btn-primary">
                             <?= $isEdit ? 'Speichern' : 'Eintrag anlegen' ?>
                         </button>
-                        <a href="<?= BASE_URL ?>/entries" class="btn btn-outline-secondary">Abbrechen</a>
+                        <a href="<?= h($backUrl) ?>" class="btn btn-outline-secondary">Abbrechen</a>
                     </div>
                 </form>
             </div>

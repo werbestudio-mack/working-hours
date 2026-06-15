@@ -3,18 +3,25 @@ $monthNames = [
     1=>'Januar',2=>'Februar',3=>'März',4=>'April',5=>'Mai',6=>'Juni',
     7=>'Juli',8=>'August',9=>'September',10=>'Oktober',11=>'November',12=>'Dezember',
 ];
-$balance     = $hoursData['balance'];
+$balance      = $hoursData['balance'];
 $balanceClass = $balance >= 0 ? 'text-success' : 'text-danger';
 
 $periodLabel = match($period) {
-    'year'   => "Gesamtes Jahr $year",
+    'year'   => "Gesamtes Jahr $year (bis heute)",
     'custom' => date('d.m.Y', strtotime($from)) . ' – ' . date('d.m.Y', strtotime($to)),
     default  => ($monthNames[$month] ?? '') . " $year",
 };
+
+$isOwnView = ((int)$viewUserId === (int)Auth::currentUser()['id']);
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h2 class="mb-0">Dashboard</h2>
+    <div>
+        <h2 class="mb-0">Dashboard</h2>
+        <?php if (!$isOwnView && $userRecord): ?>
+            <div class="text-muted small mt-1">Benutzer: <strong><?= h($userRecord['name']) ?></strong></div>
+        <?php endif; ?>
+    </div>
     <span class="text-muted">Willkommen, <?= h(Auth::currentUser()['name']) ?></span>
 </div>
 
@@ -22,11 +29,25 @@ $periodLabel = match($period) {
 <div class="card shadow-sm mb-4">
     <div class="card-body py-2">
         <form class="row g-2 align-items-end" method="get" action="<?= BASE_URL ?>/" id="periodForm">
+
+            <?php if ($isAdmin && !empty($allUsers)): ?>
+            <div class="col-auto">
+                <label class="form-label mb-1 small">Benutzer</label>
+                <select name="view_user_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <?php foreach ($allUsers as $u): ?>
+                    <option value="<?= (int)$u['id'] ?>" <?= (int)$u['id'] === (int)$viewUserId ? 'selected' : '' ?>>
+                        <?= h($u['name']) ?>
+                    </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <?php endif; ?>
+
             <div class="col-auto">
                 <label class="form-label mb-1 small">Zeitraum</label>
                 <select name="period" class="form-select form-select-sm" onchange="this.form.submit()">
                     <option value="month"  <?= $period === 'month'  ? 'selected' : '' ?>>Monat</option>
-                    <option value="year"   <?= $period === 'year'   ? 'selected' : '' ?>>Jahr</option>
+                    <option value="year"   <?= $period === 'year'   ? 'selected' : '' ?>>Jahr (bis heute)</option>
                     <option value="custom" <?= $period === 'custom' ? 'selected' : '' ?>>Benutzerdefiniert</option>
                 </select>
             </div>
@@ -177,8 +198,10 @@ $periodLabel = match($period) {
     </div>
 </div>
 
+<?php if ($isOwnView): ?>
 <div class="mt-4 text-end">
     <a href="<?= BASE_URL ?>/entries/create" class="btn btn-primary">
         + Neuer Zeiteintrag
     </a>
 </div>
+<?php endif; ?>

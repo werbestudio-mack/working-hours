@@ -4,18 +4,29 @@ class DashboardController
     public function index(array $p = []): void
     {
         Auth::requireLogin();
+        $me     = Auth::currentUser();
+        $userId = (int) $me['id'];
 
-        $userId = Auth::currentUser()['id'];
+        // Admin kann beliebigen Benutzer betrachten
+        if ($me['is_admin'] && isset($_GET['view_user_id'])) {
+            $vu = User::find((int) $_GET['view_user_id']);
+            if ($vu) {
+                $userId = (int) $vu['id'];
+            }
+        }
+        $viewUserId = $userId;
+
         $year   = (int) ($_GET['year']   ?? date('Y'));
         $period = $_GET['period'] ?? 'month';
+        $today  = date('Y-m-d');
 
         if ($period === 'year') {
             $from  = "$year-01-01";
-            $to    = "$year-12-31";
+            $to    = min("$year-12-31", $today); // nicht in die Zukunft rechnen
             $month = (int) date('m');
         } elseif ($period === 'custom') {
             $from  = $_GET['from'] ?? date('Y-m-01');
-            $to    = $_GET['to']   ?? date('Y-m-d');
+            $to    = $_GET['to']   ?? $today;
             $month = (int) date('m');
         } else {
             $period = 'month';
@@ -24,9 +35,10 @@ class DashboardController
             $to     = date('Y-m-t', strtotime($from));
         }
 
-        $hoursData   = HoursCalculator::calculate($userId, $from, $to);
+        $hoursData    = HoursCalculator::calculate($userId, $from, $to);
         $vacationData = VacationCalculator::forUser($userId, $year);
-        $userRecord  = User::find($userId);
+        $userRecord   = User::find($userId);
+        $allUsers     = $me['is_admin'] ? User::all() : [];
 
         render('dashboard/index', [
             'hoursData'    => $hoursData,
@@ -37,6 +49,9 @@ class DashboardController
             'period'       => $period,
             'year'         => $year,
             'month'        => $month,
+            'viewUserId'   => $viewUserId,
+            'allUsers'     => $allUsers,
+            'isAdmin'      => (bool) $me['is_admin'],
         ]);
     }
 }

@@ -1,6 +1,9 @@
 # Konfiguration mit echten Zugangsdaten – niemals einchecken!
 src/config.php
 
+# Migrationsskript mit personenbezogenen Daten – niemals einchecken!
+migrate.sql
+
 # PHP-Laufzeitdateien
 *.log
 /public/uploads/

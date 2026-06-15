@@ -4,23 +4,59 @@ class TimeEntryController
     public function index(array $p = []): void
     {
         Auth::requireLogin();
-        $userId = Auth::currentUser()['id'];
+        $me     = Auth::currentUser();
+        $userId = (int) $me['id'];
 
-        $year  = (int) ($_GET['year']  ?? date('Y'));
-        $month = (int) ($_GET['month'] ?? date('m'));
-        $from  = sprintf('%04d-%02d-01', $year, $month);
-        $to    = date('Y-m-t', strtotime($from));
+        // Admin kann beliebigen Benutzer betrachten
+        if ($me['is_admin'] && isset($_GET['view_user_id'])) {
+            $vu = User::find((int) $_GET['view_user_id']);
+            if ($vu) {
+                $userId = (int) $vu['id'];
+            }
+        }
+        $viewUserId = $userId;
 
+        $year     = (int) ($_GET['year']  ?? date('Y'));
+        $month    = (int) ($_GET['month'] ?? date('m'));
+        $view     = in_array($_GET['view'] ?? '', ['list', 'kw']) ? $_GET['view'] : 'list';
+        $allUsers = $me['is_admin'] ? User::all() : [];
+
+        if ($view === 'kw') {
+            $weekData = HoursCalculator::byWeek($userId, $year);
+            render('entries/index', [
+                'view'       => 'kw',
+                'weekData'   => $weekData,
+                'entries'    => [],
+                'year'       => $year,
+                'month'      => $month,
+                'from'       => "$year-01-01",
+                'to'         => "$year-12-31",
+                'success'    => getFlash('success'),
+                'error'      => getFlash('error'),
+                'viewUserId' => $viewUserId,
+                'allUsers'   => $allUsers,
+                'isAdmin'    => (bool) $me['is_admin'],
+            ]);
+            return;
+        }
+
+        $from    = sprintf('%04d-%02d-01', $year, $month);
+        $to      = date('Y-m-t', strtotime($from));
         $entries = TimeEntry::forUser($userId, $from, $to);
 
         render('entries/index', [
-            'entries' => $entries,
-            'year'    => $year,
-            'month'   => $month,
-            'from'    => $from,
-            'to'      => $to,
-            'success' => getFlash('success'),
-            'error'   => getFlash('error'),
+            'view'       => 'list',
+            'weekData'   => [],
+            'entries'    => $entries,
+            'year'       => $year,
+            'month'      => $month,
+            'from'       => $from,
+            'to'         => $to,
+            'success'    => getFlash('success'),
+            'error'      => getFlash('error'),
+            'viewUserId' => $viewUserId,
+            'allUsers'   => $allUsers,
+            'isAdmin'    => (bool) $me['is_admin'],
         ]);
     }
 
@@ -30,6 +66,7 @@ class TimeEntryController
         render('entries/form', [
             'entry'   => null,
             'error'   => getFlash('error'),
+            'backUrl' => BASE_URL . '/entries',
         ]);
     }
 
@@ -59,18 +96,26 @@ class TimeEntryController
     public function edit(array $p): void
     {
         Auth::requireLogin();
-        $entry = $this->ownEntry((int) $p[0]);
+        $entry  = $this->accessibleEntry((int) $p[0]);
+        $me     = Auth::currentUser();
+
+        // Zurück-URL: admin → zurück zum richtigen Benutzer
+        $backUrl = BASE_URL . '/entries';
+        if ($me['is_admin'] && isset($_GET['view_user_id']) && (int)$_GET['view_user_id'] !== (int)$me['id']) {
+            $backUrl .= '?view_user_id=' . (int) $_GET['view_user_id'];
+        }
 
         render('entries/form', [
-            'entry' => $entry,
-            'error' => getFlash('error'),
+            'entry'   => $entry,
+            'error'   => getFlash('error'),
+            'backUrl' => $backUrl,
         ]);
     }
 
     public function update(array $p): void
     {
         Auth::requireLogin();
-        $entry = $this->ownEntry((int) $p[0]);
+        $entry = $this->accessibleEntry((int) $p[0]);
 
         if (!Auth::verifyCsrf($_POST['csrf_token'] ?? null)) {
             flash('error', 'Ungültige Anfrage.');
@@ -87,13 +132,13 @@ class TimeEntryController
 
         TimeEntry::update((int) $p[0], $data);
         flash('success', 'Eintrag aktualisiert.');
-        redirect('/entries');
+        redirect($this->entriesRedirectPath($entry));
     }
 
     public function destroy(array $p): void
     {
         Auth::requireLogin();
-        $this->ownEntry((int) $p[0]);
+        $entry = $this->accessibleEntry((int) $p[0]);
 
         if (!Auth::verifyCsrf($_POST['csrf_token'] ?? null)) {
             flash('error', 'Ungültige Anfrage.');
@@ -102,19 +147,33 @@ class TimeEntryController
 
         TimeEntry::delete((int) $p[0]);
         flash('success', 'Eintrag gelöscht.');
-        redirect('/entries');
+        redirect($this->entriesRedirectPath($entry));
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────
 
-    private function ownEntry(int $id): array
+    private function accessibleEntry(int $id): array
     {
+        $me    = Auth::currentUser();
         $entry = TimeEntry::find($id);
-        if (!$entry || (int) $entry['user_id'] !== Auth::currentUser()['id']) {
+        if (!$entry) {
             http_response_code(404);
             die('Eintrag nicht gefunden.');
         }
+        if ((int) $entry['user_id'] !== (int) $me['id'] && !$me['is_admin']) {
+            http_response_code(403);
+            die('Zugriff verweigert.');
+        }
         return $entry;
+    }
+
+    private function entriesRedirectPath(array $entry): string
+    {
+        $me = Auth::currentUser();
+        if ((int) $entry['user_id'] !== (int) $me['id']) {
+            return '/entries?view_user_id=' . $entry['user_id'];
+        }
+        return '/entries';
     }
 
     private function buildEntryData(array $post): array
