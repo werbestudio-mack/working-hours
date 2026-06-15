@@ -143,6 +143,17 @@ if ($step === 1) {
                     'base_url' => defined('BASE_URL') ? BASE_URL : ''];
         }
     }
+    // Bei Fehler nach POST: eingegebene Werte behalten
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $pre = [
+            'db_host'  => $_POST['db_host']  ?? $pre['db_host'],
+            'db_name'  => $_POST['db_name']  ?? $pre['db_name'],
+            'db_user'  => $_POST['db_user']  ?? $pre['db_user'],
+            'db_pass'  => $_POST['db_pass']  ?? $pre['db_pass'],
+            'timezone' => $_POST['timezone'] ?? $pre['timezone'],
+            'base_url' => $_POST['base_url'] ?? $pre['base_url'],
+        ];
+    }
 
     $timezones = [
         'Europe/Berlin'   => 'Europe/Berlin (Deutschland)',
