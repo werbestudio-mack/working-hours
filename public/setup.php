@@ -285,8 +285,12 @@ function runSchema(PDO $pdo): void
     // da CREATE DATABASE mehrzeilig ist und zeilenweises Filtern Reste hinterlässt.
     $statements = array_filter(
         array_map('trim', explode(';', $sql)),
-        static fn(string $s): bool =>
-            $s !== '' && !preg_match('/^\s*(CREATE\s+DATABASE|USE\s+\w+)/i', $s)
+        static function (string $s): bool {
+            if ($s === '') return false;
+            // Kommentarzeilen (--) am Anfang entfernen, dann Typ prüfen
+            $stripped = ltrim(preg_replace('/^[ \t]*--[^\n]*\n?/m', '', $s));
+            return !preg_match('/^(CREATE\s+DATABASE|USE\s+\w+)/i', $stripped);
+        }
     );
 
     foreach ($statements as $stmt) {
