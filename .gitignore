@@ -1,0 +1,15 @@
+# Konfiguration mit echten Zugangsdaten – niemals einchecken!
+src/config.php
+
+# PHP-Laufzeitdateien
+*.log
+/public/uploads/
+
+# Betriebssystem
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp

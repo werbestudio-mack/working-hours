@@ -1,0 +1,47 @@
+/* Arbeitszeiterfassung – Custom Styles */
+
+body {
+    font-size: 0.9375rem;
+}
+
+/* Bessere Radio-Label für Typ-Auswahl im Formular */
+.form-check-inline .form-check-label {
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s;
+}
+
+.form-check-input[type="radio"]:checked + .form-check-label {
+    background-color: #0d6efd;
+    color: #fff;
+    border-color: #0d6efd !important;
+}
+
+/* Zahlen in Kacheln zentriert und ansprechend */
+.card .fs-4 {
+    line-height: 1.2;
+}
+
+/* Tabellen kompakt */
+.table th, .table td {
+    vertical-align: middle;
+}
+
+/* Navbar-Brand etwas größer */
+.navbar-brand {
+    font-size: 1.1rem;
+    letter-spacing: 0.02em;
+}
+
+/* Formular-Hilfstext */
+.form-text {
+    font-size: 0.8rem;
+}
+
+/* Abstand unter Sektionen */
+.section-gap {
+    margin-bottom: 2rem;
+}
+
+/* Positive/Negative Balance Farben */
+.balance-positive { color: #198754; }
+.balance-negative { color: #dc3545; }
