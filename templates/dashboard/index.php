@@ -145,7 +145,11 @@ $isOwnView = ((int)$viewUserId === (int)Auth::currentUser()['id']);
         <div class="card shadow-sm">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Urlaubskonto</h5>
-                <span class="text-muted small"><?= $vacationData['year'] ?></span>
+                <div class="d-flex align-items-center gap-3">
+                    <span class="text-muted small"><?= $vacationData['year'] ?></span>
+                    <a href="<?= BASE_URL ?>/vacation/detail?year=<?= $year ?><?= $isAdmin && !$isOwnView ? '&view_user_id='.$viewUserId : '' ?>"
+                       class="btn btn-sm btn-outline-secondary">Details</a>
+                </div>
             </div>
             <div class="card-body">
                 <div class="row text-center g-3">

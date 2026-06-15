@@ -17,7 +17,6 @@ $typeBadge = [
     'compensatory' => 'bg-info text-dark',
 ];
 
-// Benutzeranzeige-Name für Header
 $viewUser = null;
 if ($isAdmin && !empty($allUsers)) {
     foreach ($allUsers as $u) {
@@ -185,8 +184,8 @@ $isOwnView = ((int)$viewUserId === (int)Auth::currentUser()['id']);
 <?php endif; ?>
 
 <?php else: ?>
-<!-- ── Listenansicht ──────────────────────────────────────────────── -->
-<?php if (empty($entries)): ?>
+<!-- ── Listenansicht (nach Tagen gruppiert) ───────────────────────── -->
+<?php if (empty($dateGroups)): ?>
     <div class="alert alert-light border">
         Keine Einträge für <?= h($monthNames[$month] ?? '') ?> <?= $year ?>.
     </div>
@@ -198,52 +197,93 @@ $isOwnView = ((int)$viewUserId === (int)Auth::currentUser()['id']);
                 <tr>
                     <th>Typ</th>
                     <th>Zeitraum</th>
-                    <th>Dauer</th>
+                    <th>Dauer / Tage</th>
                     <th class="d-none d-md-table-cell">Notiz</th>
                     <th class="text-end">Aktionen</th>
                 </tr>
             </thead>
             <tbody>
-            <?php foreach ($entries as $e):
-                $isDateBased = in_array($e['type'], ['vacation', 'sick']);
-
-                if (!$isDateBased) {
-                    $startTs  = strtotime($e['started_at']);
-                    $endTs    = strtotime($e['ended_at']);
-                    $durH     = ($endTs - $startTs) / 3600;
-                    $durLabel = number_format($durH, 2) . ' h';
-
-                    $startDay   = $dayNames[(int)date('N', $startTs)] ?? '';
-                    $startStr   = $startDay . ' ' . date('d.m.Y H:i', $startTs);
-                    $sameDay    = date('Y-m-d', $startTs) === date('Y-m-d', $endTs);
-                    if ($sameDay) {
-                        $rangeLabel = $startStr . ' – ' . date('H:i', $endTs);
-                    } else {
-                        $endDay     = $dayNames[(int)date('N', $endTs)] ?? '';
-                        $rangeLabel = $startStr . ' – ' . $endDay . ' ' . date('d.m.Y H:i', $endTs);
-                    }
-                } else {
-                    $startTs  = strtotime($e['date_start']);
-                    $startDay = $dayNames[(int)date('N', $startTs)] ?? '';
-                    $rangeLabel = $startDay . ' ' . date('d.m.Y', $startTs);
-
-                    if ($e['date_start'] !== $e['date_end']) {
-                        $endTs  = strtotime($e['date_end']);
-                        $endDay = $dayNames[(int)date('N', $endTs)] ?? '';
-                        $rangeLabel .= ' – ' . $endDay . ' ' . date('d.m.Y', $endTs);
-                    }
-                    if ($e['type'] === 'vacation' && $e['half_day'] != 0) {
-                        $rangeLabel .= ' (' . ($e['half_day'] == 1 ? 'Vm.' : 'Nm.') . ')';
-                    }
-                    $durLabel = '—';
-                }
-
-                // Bearbeiten-Link: admin → view_user_id mitgeben
-                $editUrl = BASE_URL . '/entries/' . $e['id'] . '/edit';
-                if ($isAdmin && (int)$e['user_id'] !== (int)Auth::currentUser()['id']) {
-                    $editUrl .= '?view_user_id=' . (int)$e['user_id'];
-                }
+            <?php foreach ($dateGroups as $dateStr => $group):
+                $dateTs   = strtotime($dateStr);
+                $dayLabel = $dayNames[(int)date('N', $dateTs)] . ', ' . date('d.m.Y', $dateTs);
+                // Daily balance only for pure work/compensatory groups
+                $showBal  = $group['has_time'] && !$group['has_date'];
+                $bal      = $group['work_ist'] - $group['soll'];
+                $balCls   = $bal >= 0 ? 'text-success' : 'text-danger';
+                $balSign  = $bal >= 0 ? '+' : '';
             ?>
+                <!-- Tages-Gruppenheader -->
+                <tr class="table-light">
+                    <td colspan="5" class="py-1 px-3 border-bottom-0">
+                        <span class="fw-semibold small text-secondary"><?= h($dayLabel) ?></span>
+                        <?php if ($showBal): ?>
+                        <span class="text-muted small ms-2">
+                            Soll <?= formatHours($group['soll']) ?> · Ist <?= formatHours($group['work_ist']) ?>
+                        </span>
+                        <span class="fw-semibold small ms-1 <?= $balCls ?>">
+                            (<?= $balSign . formatHours($bal) ?>)
+                        </span>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+
+                <?php foreach ($group['entries'] as $e):
+                    $isDateBased = in_array($e['type'], ['vacation', 'sick']);
+                    $durExtra    = '';  // HTML, pre-escaped
+
+                    if (!$isDateBased) {
+                        $startTs = strtotime($e['started_at']);
+                        $endTs   = strtotime($e['ended_at']);
+                        $durH    = ($endTs - $startTs) / 3600;
+                        $durLabel = number_format($durH, 2) . ' h';
+
+                        $sameDay = date('Y-m-d', $startTs) === date('Y-m-d', $endTs);
+                        if ($sameDay) {
+                            $rangeLabel = date('H:i', $startTs) . ' – ' . date('H:i', $endTs);
+                        } else {
+                            $sd = $dayNames[(int)date('N', $startTs)] ?? '';
+                            $ed = $dayNames[(int)date('N', $endTs)]   ?? '';
+                            $rangeLabel = $sd . ' ' . date('d.m.Y H:i', $startTs)
+                                        . ' – ' . $ed . ' ' . date('d.m.Y H:i', $endTs);
+                        }
+                    } else {
+                        $startTs  = strtotime($e['date_start']);
+                        $startDay = $dayNames[(int)date('N', $startTs)] ?? '';
+                        $rangeLabel = $startDay . ' ' . date('d.m.Y', $startTs);
+
+                        if ($e['date_start'] !== $e['date_end']) {
+                            $endTs  = strtotime($e['date_end']);
+                            $endDay = $dayNames[(int)date('N', $endTs)] ?? '';
+                            $rangeLabel .= ' – ' . $endDay . ' ' . date('d.m.Y', $endTs);
+                        }
+                        if ($e['type'] === 'vacation' && $e['half_day'] != 0) {
+                            $rangeLabel .= ' (' . ($e['half_day'] == 1 ? 'Vm.' : 'Nm.') . ')';
+                        }
+
+                        if ($e['type'] === 'vacation') {
+                            $vd = $e['_vac_days'];
+                            if ($vd == 0.5) {
+                                $durLabel = '½ Urlaubstag';
+                            } elseif ($vd == 1.0) {
+                                $durLabel = '1 Urlaubstag';
+                            } else {
+                                $durLabel = number_format($vd, 1) . ' Urlaubstage';
+                            }
+                            if (!empty($e['_vac_hols'])) {
+                                $holNames = array_map(fn($hol) => h($hol['name']), $e['_vac_hols']);
+                                $durExtra = '<br><small class="text-muted">inkl. Feiertag: '
+                                          . implode(', ', $holNames) . '</small>';
+                            }
+                        } else {
+                            $durLabel = '—';
+                        }
+                    }
+
+                    $editUrl = BASE_URL . '/entries/' . $e['id'] . '/edit';
+                    if ($isAdmin && (int)$e['user_id'] !== (int)Auth::currentUser()['id']) {
+                        $editUrl .= '?view_user_id=' . (int)$e['user_id'];
+                    }
+                ?>
                 <tr>
                     <td>
                         <span class="badge <?= $typeBadge[$e['type']] ?? 'bg-secondary' ?>">
@@ -251,7 +291,7 @@ $isOwnView = ((int)$viewUserId === (int)Auth::currentUser()['id']);
                         </span>
                     </td>
                     <td class="text-nowrap"><?= h($rangeLabel) ?></td>
-                    <td class="text-nowrap"><?= h($durLabel) ?></td>
+                    <td class="text-nowrap"><?= h($durLabel) ?><?= $durExtra ?></td>
                     <td class="text-muted small d-none d-md-table-cell"><?= h($e['notes'] ?? '') ?></td>
                     <td class="text-end text-nowrap">
                         <a href="<?= h($editUrl) ?>"
@@ -265,6 +305,7 @@ $isOwnView = ((int)$viewUserId === (int)Auth::currentUser()['id']);
                         </form>
                     </td>
                 </tr>
+                <?php endforeach; ?>
             <?php endforeach; ?>
             </tbody>
         </table>

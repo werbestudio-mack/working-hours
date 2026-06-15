@@ -29,6 +29,8 @@ $routes = [
     ['POST', '#^/entries/(\d+)/update$#',                               'TimeEntryController',    'update'],
     ['POST', '#^/entries/(\d+)/delete$#',                               'TimeEntryController',    'destroy'],
 
+    ['GET',  '#^/vacation/detail$#',                                    'VacationController',     'detail'],
+
     ['GET',  '#^/admin/users$#',                                        'AdminUserController',    'index'],
     ['GET',  '#^/admin/users/create$#',                                 'AdminUserController',    'create'],
     ['POST', '#^/admin/users/create$#',                                 'AdminUserController',    'store'],

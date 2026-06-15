@@ -7,7 +7,6 @@ class TimeEntryController
         $me     = Auth::currentUser();
         $userId = (int) $me['id'];
 
-        // Admin kann beliebigen Benutzer betrachten
         if ($me['is_admin'] && isset($_GET['view_user_id'])) {
             $vu = User::find((int) $_GET['view_user_id']);
             if ($vu) {
@@ -24,18 +23,18 @@ class TimeEntryController
         if ($view === 'kw') {
             $weekData = HoursCalculator::byWeek($userId, $year);
             render('entries/index', [
-                'view'       => 'kw',
-                'weekData'   => $weekData,
-                'entries'    => [],
-                'year'       => $year,
-                'month'      => $month,
-                'from'       => "$year-01-01",
-                'to'         => "$year-12-31",
-                'success'    => getFlash('success'),
-                'error'      => getFlash('error'),
-                'viewUserId' => $viewUserId,
-                'allUsers'   => $allUsers,
-                'isAdmin'    => (bool) $me['is_admin'],
+                'view'        => 'kw',
+                'weekData'    => $weekData,
+                'dateGroups'  => [],
+                'year'        => $year,
+                'month'       => $month,
+                'from'        => "$year-01-01",
+                'to'          => "$year-12-31",
+                'success'     => getFlash('success'),
+                'error'       => getFlash('error'),
+                'viewUserId'  => $viewUserId,
+                'allUsers'    => $allUsers,
+                'isAdmin'     => (bool) $me['is_admin'],
             ]);
             return;
         }
@@ -44,10 +43,12 @@ class TimeEntryController
         $to      = date('Y-m-t', strtotime($from));
         $entries = TimeEntry::forUser($userId, $from, $to);
 
+        $dateGroups = $this->buildDateGroups($entries);
+
         render('entries/index', [
             'view'       => 'list',
             'weekData'   => [],
-            'entries'    => $entries,
+            'dateGroups' => $dateGroups,
             'year'       => $year,
             'month'      => $month,
             'from'       => $from,
@@ -99,7 +100,6 @@ class TimeEntryController
         $entry  = $this->accessibleEntry((int) $p[0]);
         $me     = Auth::currentUser();
 
-        // Zurück-URL: admin → zurück zum richtigen Benutzer
         $backUrl = BASE_URL . '/entries';
         if ($me['is_admin'] && isset($_GET['view_user_id']) && (int)$_GET['view_user_id'] !== (int)$me['id']) {
             $backUrl .= '?view_user_id=' . (int) $_GET['view_user_id'];
@@ -151,6 +151,117 @@ class TimeEntryController
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────
+
+    /**
+     * Gruppiert Einträge nach Datum, berechnet Tages-Soll/Ist und
+     * reichert Urlaubseinträge mit Urlaubstage-Infos an.
+     */
+    private function buildDateGroups(array $entries): array
+    {
+        // Alle Feiertage einmalig laden
+        $allHolidays = [];
+        foreach (PublicHoliday::all() as $h) {
+            $allHolidays[$h['date']] = $h;
+        }
+
+        // Tages-Soll des aktuell betrachteten Benutzers
+        $me         = Auth::currentUser();
+        $userId     = $me['is_admin'] && isset($_GET['view_user_id'])
+            ? (int) $_GET['view_user_id'] : (int) $me['id'];
+        $userRecord  = User::find($userId);
+        $dailyTarget = ($userRecord && (float)$userRecord['weekly_hours'] > 0)
+            ? (float)$userRecord['weekly_hours'] / 5.0
+            : 0.0;
+
+        $dateGroups = [];
+
+        foreach ($entries as $entry) {
+            $entryDate = in_array($entry['type'], ['work', 'compensatory'])
+                ? substr($entry['started_at'], 0, 10)
+                : $entry['date_start'];
+
+            if (!isset($dateGroups[$entryDate])) {
+                $dow = (int)(new DateTime($entryDate))->format('N');
+                if ($dow <= 5) {
+                    $h = $allHolidays[$entryDate] ?? null;
+                    if ($h && !$h['is_half_day']) {
+                        $daySoll = 0.0;
+                    } elseif ($h && $h['is_half_day']) {
+                        $daySoll = $dailyTarget * 0.5;
+                    } else {
+                        $daySoll = $dailyTarget;
+                    }
+                } else {
+                    $daySoll = 0.0;
+                }
+                $dateGroups[$entryDate] = [
+                    'date'     => $entryDate,
+                    'soll'     => $daySoll,
+                    'work_ist' => 0.0,
+                    'has_time' => false,
+                    'has_date' => false,
+                    'entries'  => [],
+                ];
+            }
+
+            $enriched = $entry;
+
+            if (in_array($entry['type'], ['work', 'compensatory'])) {
+                $s = strtotime($entry['started_at']);
+                $e = strtotime($entry['ended_at']);
+                $dateGroups[$entryDate]['work_ist'] += max(0.0, ($e - $s) / 3600.0);
+                $dateGroups[$entryDate]['has_time']  = true;
+            } else {
+                $dateGroups[$entryDate]['has_date'] = true;
+
+                if ($entry['type'] === 'vacation') {
+                    $d       = new DateTime($entry['date_start']);
+                    $dEnd    = new DateTime($entry['date_end']);
+                    $vacDays = 0.0;
+                    $holList = [];
+                    $isFirst = true;
+
+                    while ($d <= $dEnd) {
+                        $n  = (int) $d->format('N');
+                        $ds = $d->format('Y-m-d');
+                        if ($n <= 5) {
+                            $hol = $allHolidays[$ds] ?? null;
+                            if ($hol && !$hol['is_half_day']) {
+                                $holList[] = $hol;
+                            } elseif ($hol && $hol['is_half_day']) {
+                                $vacDays += 0.5;
+                            } elseif ($entry['half_day'] != 0 && $isFirst) {
+                                $vacDays += 0.5;
+                            } else {
+                                $vacDays += 1.0;
+                            }
+                        }
+                        $isFirst = false;
+                        $d->modify('+1 day');
+                    }
+                    $enriched['_vac_days'] = $vacDays;
+                    $enriched['_vac_hols'] = $holList;
+                }
+            }
+
+            $dateGroups[$entryDate]['entries'][] = $enriched;
+        }
+
+        // Einträge innerhalb einer Gruppe chronologisch sortieren
+        foreach ($dateGroups as &$group) {
+            usort($group['entries'], static function (array $a, array $b): int {
+                $tsA = strtotime($a['started_at'] ?? $a['date_start']);
+                $tsB = strtotime($b['started_at'] ?? $b['date_start']);
+                return $tsA <=> $tsB;
+            });
+        }
+        unset($group);
+
+        // Gruppen absteigend nach Datum sortieren (neueste oben)
+        krsort($dateGroups);
+
+        return $dateGroups;
+    }
 
     private function accessibleEntry(int $id): array
     {
