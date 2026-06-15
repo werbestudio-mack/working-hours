@@ -10,9 +10,22 @@ Webbasiertes Tool zur Erfassung von Arbeitszeiten, Urlaub und Krankheit. PHP 8.1
 
 ## Installation
 
-### 1. Dateien hochladen
+### 1. Repository auf den Server klonen
 
-Den gesamten Projektordner auf den Server kopieren. Den Document Root des Webservers auf `public/` zeigen lassen.
+Per SSH auf den Server verbinden und das Repository klonen:
+
+```bash
+cd /var/www
+git clone https://github.com/theandy/working-hours.git
+```
+
+Den Document Root des Webservers anschließend auf das Verzeichnis `public/` zeigen lassen, z.B.:
+
+```
+/var/www/working-hours/public
+```
+
+**Alternativ ohne Git** – Dateien per FTP/SFTP hochladen und den Ordner entpacken.
 
 ### 2. Leere Datenbank anlegen
 
