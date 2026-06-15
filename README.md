@@ -32,6 +32,15 @@ cd /var/www/mein-verzeichnis
 git clone https://github.com/theandy/working-hours.git .
 ```
 
+Falls das Verzeichnis bereits existiert und nicht leer ist:
+
+```bash
+cd /var/www/mein-verzeichnis
+git init
+git remote add origin https://github.com/theandy/working-hours.git
+git pull origin master
+```
+
 Dann liegt `public/` direkt unter `/var/www/mein-verzeichnis/public`.
 
 **Alternativ ohne Git** – Dateien per FTP/SFTP hochladen und den Ordner entpacken.
