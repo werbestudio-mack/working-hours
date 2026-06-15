@@ -25,6 +25,15 @@ Den Document Root des Webservers anschließend auf das Verzeichnis `public/` zei
 /var/www/working-hours/public
 ```
 
+Alternativ direkt in ein bestehendes (leeres) Verzeichnis klonen:
+
+```bash
+cd /var/www/mein-verzeichnis
+git clone https://github.com/theandy/working-hours.git .
+```
+
+Dann liegt `public/` direkt unter `/var/www/mein-verzeichnis/public`.
+
 **Alternativ ohne Git** – Dateien per FTP/SFTP hochladen und den Ordner entpacken.
 
 ### 2. Leere Datenbank anlegen
