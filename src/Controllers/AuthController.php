@@ -216,7 +216,12 @@ class AuthController
                     . "Content-Type: text/plain; charset=UTF-8\r\n"
                     . "Content-Transfer-Encoding: 8bit\r\n";
 
-        $sent = mail($user['email'], $subject, $body, $headers);
+        // Envelope-Sender (-f) explizit auf MAIL_FROM setzen, damit er zum
+        // sichtbaren From-Header passt. Sonst nutzt der MTA standardmäßig den
+        // Webspace-User als Envelope-Sender, was bei vielen Empfängern zu
+        // einem SPF-Mismatch und damit zu Spam/Verwurf führt.
+        $envelopeFrom = '-f' . $fromEmail;
+        $sent = mail($user['email'], $subject, $body, $headers, $envelopeFrom);
         if (!$sent) {
             error_log('Passwort-Reset: mail() an ' . $user['email'] . ' fehlgeschlagen (From: ' . $fromEmail . ')');
         }
