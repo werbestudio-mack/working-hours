@@ -216,6 +216,9 @@ class AuthController
                     . "Content-Type: text/plain; charset=UTF-8\r\n"
                     . "Content-Transfer-Encoding: 8bit\r\n";
 
-        mail($user['email'], $subject, $body, $headers);
+        $sent = mail($user['email'], $subject, $body, $headers);
+        if (!$sent) {
+            error_log('Passwort-Reset: mail() an ' . $user['email'] . ' fehlgeschlagen (From: ' . $fromEmail . ')');
+        }
     }
 }
